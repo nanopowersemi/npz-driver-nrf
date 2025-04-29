@@ -1,0 +1,11 @@
+&arduino_i2c {
+	compatible = "nordic,nrf-twim";
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	twis_device: npzero@3D {
+		label = "i2c pmic";
+		compatible = "i2c-device";
+		status = "okay";
+		reg = <0x3D>;
+	};
+};
