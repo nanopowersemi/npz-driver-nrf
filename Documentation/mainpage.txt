@@ -1,0 +1,307 @@
+/** @mainpage 
+ *
+ * @section intro_sec Introduction
+ *
+ * Documentation for the nPZero Driver API.
+ * This driver provides an interface to control and manage the nPZero IC on a register level, enabling users to efficiently
+ * handle power-related functionalities in their applications.
+ * 
+ * It includes a Hardware Abstraction Layer (HAL) for I2C
+ * operations that users can modify to suit their specific hardware configurations.
+ *
+ * @section hardware_sec Hardware requirements
+ * 
+ * In order to run the example code one will need the following hardware.
+ * - nPZero G1 Development Kit (DevKit)
+ * - STM32L053C8 Host MCU (bundled with the DevKit)
+ * - Temperature sensor AMS6212 (bundled with the DevKit)
+ * - Accelerometer ST LIS2DW12 (bundled with the DevKit)
+ * - Segger J-LINK Debugger
+ *
+ * @section features_sec Key Features
+ *
+ * - Control and manage power-related operations through a unified interface.
+ * - Communicate with multiple sensors using I2C and SPI protocols.
+ * - Facilitate efficient power management and sensor control in embedded systems.
+ * - Enables the host system to control multiple I2C and SPI peripherals
+ *   connected to the PMIC.
+ * - Allows users to customize the I2C hardware-specific functions
+ *   to match their system's configurations and peripherals.
+ * - Includes example code to facilitate a quick start for utilizing the driver and
+ *   controlling connected peripherals.
+ *
+ * @section usage_sec Usage
+ *
+ * To utilize the nPZero Driver effectively, follow these steps:
+ *
+ * - Ensure proper initialization of the Hardware Abstraction Layer (np0_hal.c).
+ * - Implement necessary configurations for sensor communication over I2C or SPI. See coding examples.
+ * - Utilize the provided functions to manage power operations and interact with sensors.
+ * - Refer to the example code file for a quick start and implementation reference.
+ *
+ * The provided example code demonstrates how to initialize the driver, configure the nPZero, and control
+ * connected peripherals using the driver's functions.
+ *
+ * For detailed function usage and guidelines, refer to the function documentation provided in this
+ * driver's documentation.
+ *
+ * @section examples_sec Coding Examples
+ * There are coding examples for the different Peripheral Modes for the sensors that are bundled with the DevKit.
+ * The examples can be found here:
+ *
+ * - @ref example_peripheral_modes "I2C Sensor Control Example": Illustrates how to interface and control
+ *   a sensor connected via I2C using the nPZero Driver.
+ * - @ref spi_example "SPI Sensor Control Example": Demonstrates the interaction and control
+ *   of a sensor connected via SPI using the nPZero Driver.
+ *
+ */
+
+/**
+ * @page example_peripheral_modes I2C Sensor Control Example
+ *
+ * @section example_peripheral_modes_sec Description
+ *
+ * These examples showcases the usage of the nPZero Driver to control a sensor connected
+ * via the I2C interface. It demonstrates the initialization, configuration, and data
+ * exchange procedures required for sensor interaction using the nPZero Driver. The sensor in use here is the AMS AS6212.
+ *
+ *
+ * @section i2c_example_code Code Example Peripheral Mode 1
+ *
+ * Code snippet illustrating the usage of the Peripheral Mode 1 for I2C sensor control:
+ * This code will set the sensor peripheral to Low Power Switch #2. 
+ * The Low Power Switch will then be passed as parameter to every function call that has to do with a specific sensor, so it is clear which sensor register should be changed.
+ * 
+ * - The example will firstly setup the configuration registers for Peripheral Mode 1. This is done in SYSCFG1, CFGP2, MODP2, PERP2.
+ * - Next up we need to configure the communication for Peripheral Mode 1. In this example we will use I2C between the sensor and the nPZero and so we use ADDRP2 to define I2C Slave Address and set I2C protocol.
+ * - Set NCMDP to number of I2C commands to use for initialize sensor.
+ * - After this we write the I2C initialization commands to SRAM.
+ * - Then define the register that shall be read on wakeup. In this case it is the TVAL register in the AS6212.
+ * - Set the Over and Under threshold registers in the nPZero by setting THROVP2 and THRUNP2.
+ * - Lastly set the TCFGP2 for configuration of the TWTP2 register and also set TWTP2 register to define the wait time between power-on/initialization and initialization. 
+ * 
+ * @code
+ * void example_peripheral_modes_config_i2c_PM1(np0_device_s device, np0_peripheral_s sensor)
+ * {
+ *     uint8_t sram_reg = REG_SRAM_START;
+ *     sensor.periph = PSW_LP2;
+ * 
+ *     np0_read_SYSCFG1(&device.syscfg1);
+ *     switch (sensor.periph)
+ *     {
+ *         case PSW_LP1:
+ *             device.syscfg1.wup1 = ENABLED;
+ *             break;
+ * 
+ *         case PSW_LP2:
+ *             device.syscfg1.wup2 = ENABLED;
+ *             break;
+ * 
+ *         case PSW_LP3:
+ *             device.syscfg1.wup3 = ENABLED;
+ *             break;
+ * 
+ *         case PSW_LP4:
+ *             device.syscfg1.wup4 = ENABLED;
+ *             break;
+ *     }
+ *     np0_write_SYSCFG1(device.syscfg1);
+ * 
+ *     sensor.cfgp.pwmod = PWMOD_PERIODIC;
+ *     sensor.cfgp.tmod = TMOD_PERIODIC_INIT_CMP_THRESHOLD;
+ *     sensor.cfgp.pswmod = PSWMOD_POWER_SW;
+ *     np0_write_CFGP(sensor.periph, sensor.cfgp);
+ * 
+ *     sensor.modp.cmod = CMOD_CMP_OUTSIDE_THRESHOLD_MODE;
+ *     sensor.modp.dtype = DTYPE_INT16;
+ *     sensor.modp.seqrw = ENABLE_MULTIBYTE_TRANSFER;
+ *     sensor.modp.wunak = ENABLED;
+ *     sensor.modp.swprreg = BIG_ENDIAN;
+ *     np0_write_MODP(sensor.periph, sensor.modp);
+ * 
+ *     // Wakeup peripheral every 30 seconds with 10Hz clock
+ *     sensor.perp.perp_l = 0x2C;
+ *     sensor.perp.perp_h = 0x01;
+ *     np0_write_PERP(sensor.periph, sensor.perp);
+ * 
+ *     sensor.ncmdp.ncmdp = 2; //# of I2C commands to be sent from SRAM
+ *     np0_write_NCMDP(sensor.periph, sensor.ncmdp);
+ * 
+ *     sensor.addrp.addrp = AS6212;
+ *     sensor.addrp.spi_en = I2C;
+ *     np0_write_ADDRP(sensor.periph, sensor.addrp);
+ * 
+ * /*================INIT CMDs======================*/
+ *     device.sram.value = 0x01; //Config register (Base register when multi-byte transfer enabled)
+ *     np0_write_SRAM(sram_reg, device.sram);
+ *     sram_reg += SRAM_REG_SIZE;
+ * 
+ *     device.sram.value = 0x02; //Config register++ (base register +1 since multi-byte is enabled)
+ *     np0_write_SRAM(sram_reg, device.sram);
+ *     sram_reg += SRAM_REG_SIZE;
+ *     
+ *     device.sram.value = 0xC5; //MSB first
+ *     np0_write_SRAM(sram_reg, device.sram);
+ *     sram_reg += SRAM_REG_SIZE;
+ * 
+ *     device.sram.value = 0x00;
+ *     np0_write_SRAM(sram_reg, device.sram);
+ *     sram_reg += SRAM_REG_SIZE;
+ * /*================INIT CMDs END====================*/
+ * 
+ *     //AS6212 TVAL register
+ *     sensor.rregp.rregp = 0x00;
+ *     np0_write_RREGP(sensor.periph, sensor.rregp);
+ * 
+ *     //0x900 = 18 degrees C
+ *     sensor.thrunp.thrunp_l = 0x00;
+ *     sensor.thrunp.thrunp_h = 0x09;
+ *     np0_write_THRUNP(sensor.periph, sensor.thrunp);
+ * 
+ *     //0xC80 = 25 degrees C
+ *     sensor.throvp.throvp_l = 0x80;
+ *     sensor.throvp.throvp_h = 0x0C;
+ *     np0_write_THROVP(sensor.periph, sensor.throvp);
+ * 
+ *     sensor.twtp.twtp = 0x0C; /* 12 (0x0C) * 4096 = 50k clock cycles = 125ms (400kHz)
+ *                                 12 (0x0C) * 256 = 3k clock cycles = 7.5ms*/
+ *     np0_write_TWTP(sensor.periph, sensor.twtp);
+ * 
+ *     sensor.tcfgp.twt_en = ENABLED;
+ *     sensor.tcfgp.tinit_en = ENABLED;
+ *     sensor.tcfgp.tinit_ext = ENABLED;
+ *     sensor.tcfgp.i2cret = 3;
+ *     np0_write_TCFGP(sensor.periph, sensor.tcfgp);
+ * 
+ * }
+ * @endcode
+ *
+ * @section i2c_example_note Note
+ *
+ * - Modify the code example according to your sensor's specifications and communication protocol.
+ * - Refer to the nPZero Driver function documentation for specific function usage.
+ */
+
+/**
+ * @page spi_example SPI Sensor Control Example
+ *
+ * @section spi_example_sec Description
+ *
+ * This example demonstrates the usage of the nPZero Driver to control a sensor connected
+ * via the SPI interface. It outlines the initialization, configuration, and data exchange
+ * procedures required for sensor interaction using the nPZero Driver. Sensor in use here is the ST LIS2DW12.
+ *
+ *
+ * @section spi_example_code Code Example Peripheral Mode 1
+ *
+ * Code snippet illustrating the usage of the Peripheral Mode 1 for SPI sensor control:
+ * This code will set the sensor peripheral to Low Power Switch #1. 
+ * The Low Power Switch will then be passed as parameter to every function call that has to do with a specific sensor, so it is clear which sensor register should be changed.
+ * 
+ * - The example will firstly setup the configuration registers for Peripheral Mode 1. This is done in SYSCFG1, CFGP1, MODP1, PERP1.
+ * - Next up we need to configure the communication for Peripheral Mode 1. In this example we will use SPI between the sensor and the nPZero and so we use ADDRP1 to enable SPI protocol and define number of bytes to send.
+ * - Set NCMDP to number of I2C commands to use for initialize sensor in this case 0.
+ * - After this we write the read commands to SRAM that shall be sent at wakeup.
+ * - Set the Over and Under threshold registers in the nPZero by setting THROVP1 and THRUNP1.
+ * - Lastly set the TCFGP1 for configuration of the TWTP1 register and also set TWTP1 register to define the wait time between power-on/initialization and initialization. 
+ * 
+ *
+ * @code
+ *void example_peripheral_modes_config_spi_PM1(np0_device_s device, np0_peripheral_s sensor)
+ *{
+ *    sensor.periph = PSW_LP1;
+ *
+ *    np0_read_SYSCFG1(&device.syscfg1);
+ *    switch (sensor.periph)
+ *    {
+ *        case PSW_LP1:
+ *            device.syscfg1.wup1 = ENABLED;
+ *            break;
+ *
+ *        case PSW_LP2:
+ *            device.syscfg1.wup2 = ENABLED;
+ *            break;
+ *
+ *        case PSW_LP3:
+ *            device.syscfg1.wup3 = ENABLED;
+ *            break;
+ *
+ *        case PSW_LP4:
+ *            device.syscfg1.wup4 = ENABLED;
+ *            break;
+ *    }
+ *    np0_write_SYSCFG1(device.syscfg1);
+ *
+ *    sensor.cfgp.pwmod = PWMOD_PERIODIC;
+ *    sensor.cfgp.tmod = TMOD_PERIODIC_INIT_CMP_THRESHOLD;
+ *    sensor.cfgp.pswmod = PSWMOD_POWER_SW;
+ *    np0_write_CFGP(sensor.periph, sensor.cfgp);
+ *
+ *    sensor.modp.cmod = CMOD_CMP_OUTSIDE_THRESHOLD_MODE;
+ *    sensor.modp.dtype = DTYPE_INT16;
+ *    sensor.modp.seqrw = DISABLE_MULTIBYTE_TRANSFER;
+ *    sensor.modp.swprreg = LITTLE_ENDIAN;
+ *    sensor.modp.spimod = SPIMOD_SPI_MODE_0;
+ *    np0_write_MODP(sensor.periph, sensor.modp);
+ *
+ *    // Wakeup peripheral every 30 seconds with 10Hz clock
+ *    sensor.perp.perp_l = 0x2C;
+ *    sensor.perp.perp_h = 0x01;
+ *    np0_write_PERP(sensor.periph, sensor.perp);
+ *
+ *    sensor.ncmdp.ncmdp = 0; //0 init commands
+ *    np0_write_NCMDP(sensor.periph, sensor.ncmdp);
+ *    
+ *    device.sram.value = 0x28 | 0x80; //Read OUT_X_L
+ *    np0_write_SRAM(REG_SRAM_START, device.sram);
+ *    
+ *    device.sram.value = 0x29 | 0x80; //Read OUT_X_H
+ *    np0_write_SRAM(REG_SRAM_START + 0x40, device.sram);
+ *
+ *    sensor.addrp.addrp = 2; //NBR of bytes to send from SRAM for SPI read
+ *    sensor.addrp.spi_en = SPI;
+ *    np0_write_ADDRP(sensor.periph, sensor.addrp);
+ *
+ *    //16-bit value, max = 0x7FFF (32767), set 0x3FFF (16383) as highest
+ *    sensor.throvp.throvp_l = 0xFF;
+ *    sensor.throvp.throvp_h = 0x3F; 
+ *    np0_write_THROVP(sensor.periph, sensor.throvp);
+ *
+ *    //16-bit value, min = 0xFFFF (-32767), set 0 as lowest
+ *    sensor.thrunp.thrunp_l = 0x00;
+ *    sensor.thrunp.thrunp_h = 0x00;
+ *    np0_write_THRUNP(sensor.periph, sensor.thrunp);
+ *
+ *    sensor.twtp.twtp = 8; // 8 * 256 = 2048 clock cycles = 5.12ms (400kHz)
+ *    np0_write_TWTP(sensor.periph, sensor.twtp);
+ *
+ *    sensor.tcfgp.twt_en = 1; //Enable pre-initialization time
+ *    sensor.tcfgp.tinit_en = 1; //Enable post-initiliazation time
+ *    np0_write_TCFGP(sensor.periph, sensor.tcfgp);
+ *}
+ * @endcode
+ *
+ * @section spi_example_note Note
+ *
+ * - Adapt the code example to match your sensor's specifications and communication protocol.
+ * - Consult the nPZero Driver function documentation for precise function usage.
+ */
+
+ /**
+ * @page google_tag_manager Google Tag Manager
+ *
+ * @htmlonly
+ * <!-- Google Tag Manager -->
+ * <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+ * new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+ * j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+ * 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+ * })(window,document,'script','dataLayer','GTM-WGW7CP5X');</script>
+ * <!-- End Google Tag Manager -->
+ *
+ * <!-- Google Tag Manager (noscript) -->
+ * <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-WGW7CP5X"
+ * height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+ * <!-- End Google Tag Manager (noscript) -->
+ * @endhtmlonly
+ */

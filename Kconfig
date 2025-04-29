@@ -1,0 +1,17 @@
+menu "nPZero Driver nRF52"
+
+config NP0_G0
+    bool "Enable nano power G0"
+	default y
+    help
+      This firmware enables nano power G0. Note that SRMA and SPI communication with external peripherals are not supported.
+
+endmenu
+
+menu "Zephyr Kernel"
+source "Kconfig.zephyr"
+endmenu
+
+module = APPLICATION_MODULE
+module-str = Application module
+source "subsys/logging/Kconfig.template.log_config"
