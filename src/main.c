@@ -1,11 +1,11 @@
-#include "np0.h"
-#include "np0_hal.h"
-#include "np0_device_control.h"
+#include "npz.h"
+#include "npz_hal.h"
+#include "npz_device_control.h"
 #include <zephyr/kernel.h>
 #include <stdio.h>
 
 //[CFGSTRUCT_START]
-np0_peripheral_config_s peripheral_3 = {
+npz_peripheral_config_s peripheral_3 = {
     .power_mode = POWER_MODE_PERIODIC,
     .communication_protocol = COM_SPI,
     .polling_mode = POLLING_MODE_PERIODIC_READ_COMPARE_THRESHOLD,
@@ -28,7 +28,7 @@ np0_peripheral_config_s peripheral_3 = {
     .threshold_under = 64536,
 };
 
-np0_peripheral_config_s peripheral_4 = {
+npz_peripheral_config_s peripheral_4 = {
     .power_mode = POWER_MODE_PERIODIC,
     .communication_protocol = COM_I2C,
     .polling_mode = POLLING_MODE_PERIODIC_READ_COMPARE_THRESHOLD,
@@ -52,19 +52,19 @@ np0_peripheral_config_s peripheral_4 = {
     .threshold_under = 2560,
 };
 
-np0_adc_config_channels_s np0_adc_internal_config = {
+npz_adc_config_channels_s npz_adc_internal_config = {
     .wakeup_enable = 0,
     .over_threshold = 0,
     .under_threshold = 0,
 };
 
-np0_adc_config_channels_s np0_adc_external_config = {
+npz_adc_config_channels_s npz_adc_external_config = {
     .wakeup_enable = 0,
     .over_threshold = 0,
     .under_threshold = 0,
 };
 
-np0_device_config_s np0_configuration = {
+npz_device_config_s npz_configuration = {
     .host_power_mode = HOST_POWER_MODE_SWITCH,
     .power_switch_normal_mode_per1 = 0,
     .power_switch_normal_mode_per2 = 0,
@@ -88,7 +88,7 @@ np0_device_config_s np0_configuration = {
     .interrupt_pin_pull_up_pin4 = INT_PIN_PULL_LOW,
     .adc_ext_sampling_enable = 0,
     .adc_clock_sel = ADC_CLK_SC,
-    .adc_channels = {&np0_adc_internal_config, &np0_adc_external_config},
+    .adc_channels = {&npz_adc_internal_config, &npz_adc_external_config},
     .peripherals = {0, 0, &peripheral_3, &peripheral_4},
 };
 //[CFGSTRUCT_END]
@@ -101,10 +101,10 @@ static void read_peripheral_temp(int peripheral_value)
            (int) ((temperature - (int) temperature) * 1000));
 }
 
-static void np0_read_status_registers(np0_status_s *status)
+static void npz_read_status_registers(npz_status_s *status)
 {
     // Read the first status register
-    if (np0_read_STA1(&status->status1) != OK)
+    if (npz_read_STA1(&status->status1) != OK)
     {
         return;
     }
@@ -129,7 +129,7 @@ static void np0_read_status_registers(np0_status_s *status)
 
     if (status->status1.ext_adc_triggered == 1)
     {
-        if (!np0_device_handle_adc_external())
+        if (!npz_device_handle_adc_external())
         {
             return;
         }
@@ -137,7 +137,7 @@ static void np0_read_status_registers(np0_status_s *status)
 
     if (status->status1.int_adc_triggered == 1)
     {
-        if (!np0_device_handle_adc_internal())
+        if (!npz_device_handle_adc_internal())
         {
             return;
         }
@@ -149,14 +149,14 @@ static void np0_read_status_registers(np0_status_s *status)
     }
 
     // Read the second status register
-    if (np0_read_STA2(&status->status2) != OK)
+    if (npz_read_STA2(&status->status2) != OK)
     {
         return;
     }
 
     // Handle status2
     // Arrays to map peripherals and switches
-    np0_psw_e switches[4] = {PSW_LP1, PSW_LP2, PSW_LP3, PSW_LP4};
+    npz_psw_e switches[4] = {PSW_LP1, PSW_LP2, PSW_LP3, PSW_LP4};
     uint8_t triggered[4] = {status->status2.per1_triggered, status->status2.per2_triggered,
                             status->status2.per3_triggered, status->status2.per4_triggered};
     uint8_t timeouts[4] = {status->status2.per1_global_timeout, status->status2.per2_global_timeout,
@@ -169,12 +169,12 @@ static void np0_read_status_registers(np0_status_s *status)
         {
             int peripheral_value = 0;
 
-            np0_device_read_peripheral_value(switches[i], i,
+            npz_device_read_peripheral_value(switches[i], i,
                                              &peripheral_value); // Read the peripheral value based on the switch
 
-            if (np0_configuration.peripherals[i]->communication_protocol == COM_I2C &&
-                (np0_configuration.peripherals[i]->polling_mode == POLLING_MODE_PERIODIC_READ_COMPARE_THRESHOLD ||
-                 np0_configuration.peripherals[i]->polling_mode ==
+            if (npz_configuration.peripherals[i]->communication_protocol == COM_I2C &&
+                (npz_configuration.peripherals[i]->polling_mode == POLLING_MODE_PERIODIC_READ_COMPARE_THRESHOLD ||
+                 npz_configuration.peripherals[i]->polling_mode ==
                      POLLING_MODE_PERIODIC_WAIT_INTERRUPT_COMPARE_THRESHOLD))
             {
                 read_peripheral_temp(peripheral_value);
@@ -194,19 +194,19 @@ int main(void)
     printk("nPZero Host is active.........\r\n");
 
     // Initialize the nP0 interface
-    np0_hal_init();
+    npz_hal_init();
   
     // Read the status registers of the nP0 device after every reset
-    np0_status_s np0_status = {0};
-    np0_read_status_registers(&np0_status);
+    npz_status_s npz_status = {0};
+    npz_read_status_registers(&npz_status);
 
     // Send the configuration to the device
-    np0_device_configure(&np0_configuration);
+    npz_device_configure(&npz_configuration);
 
     // Add a delay at the start of main, to give the user time to flash the MCU before it enters sleep
     // This delay should be removed in production code  
     k_msleep(1000);
 
     // At the end of your operations, put the device into sleep mode
-    np0_device_go_to_sleep();
+    npz_device_go_to_sleep();
 }

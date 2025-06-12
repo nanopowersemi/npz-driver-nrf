@@ -7,8 +7,8 @@
  *
  */
 
-#ifndef NP0_TEMP_SENSOR_H_
-#define NP0_TEMP_SENSOR_H_
+#ifndef __NPZ_TEMP_SENSOR_H
+#define __NPZ_TEMP_SENSOR_H
 
 /** @cond */
 #include <stdbool.h>
@@ -23,6 +23,6 @@
  * within the range, it sets the appropriate configures for the sensor.
  * Otherwise, it sets the sensor to sleep mode and reconfigures it.
  */
-void np0_temp_sensor_manage_mode2(void);
+void npz_temp_sensor_manage_mode2(void);
 
-#endif /* NP0_TEMP_SENSOR_H_ */
+#endif /* __NPZ_TEMP_SENSOR_H */
