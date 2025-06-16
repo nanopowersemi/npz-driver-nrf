@@ -8,6 +8,6 @@ add_subdirectory(nPZero_Driver/Src)
 add_subdirectory(nPZero_internal)
 
 target_sources(app PRIVATE src/main.c)
-target_sources(app PRIVATE src/np0_ble.c)
+target_sources(app PRIVATE src/npz_ble.c)
 
 target_include_directories(app PRIVATE nPZero_Driver/Inc)
