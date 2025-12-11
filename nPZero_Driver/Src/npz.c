@@ -276,17 +276,30 @@ npz_status_e npz_read_ADC_EXT(npz_register_adc_ext_s *adc_ext)
 
 npz_status_e npz_write_SRAM(const uint8_t sram_reg, const uint8_t SRAM)
 {
+	npz_status_e ret;
+	npz_register_sram_s SRAMData;
 	uint8_t transmitData[2] = { 0 };
+	npz_read_SRAM(0x80, &SRAMData);
 	transmitData[0] = sram_reg;
-	transmitData[1] = SRAM;
+	SRAMData.value[sram_reg - 0x80] = SRAM;
 
-	return npz_hal_write(NPZ_I2C_ADDRESS, transmitData, sizeof(transmitData),
-			I2C_TRANSMISSION_TIMEOUT_MS);
+	for (uint8_t i = 0; i < 128 ; i++)
+	{
+	  uint8_t k=( ((~i)&0x07)<<3 ) + ( (i&0x38)>>3 ) + (i&0x40);
+	  transmitData[0] = 0x80 + k;
+	  transmitData[1] = SRAMData.value[k];
+	  //printf("SRAM...REG[0x%02x] DATA [0x%02x] ------ k=%d \n\r", transmitData[0], transmitData[1] , k);
+	  ret = npz_hal_write(NPZ_I2C_ADDRESS, transmitData, 2, I2C_TRANSMISSION_TIMEOUT_MS);
+	}
+
+//	return npz_hal_write(NPZ_I2C_ADDRESS, transmitData, sizeof(transmitData),
+//			I2C_TRANSMISSION_TIMEOUT_MS);
+	return ret;
 }
 
 npz_status_e npz_read_SRAM(const uint8_t sram_reg, npz_register_sram_s *SRAM)
 {
-	return npz_hal_read(NPZ_I2C_ADDRESS, sram_reg, (uint8_t*) SRAM, 1,
+	return npz_hal_read(NPZ_I2C_ADDRESS, sram_reg, (uint8_t*) SRAM, 128,
 			I2C_TRANSMISSION_TIMEOUT_MS);
 }
 
