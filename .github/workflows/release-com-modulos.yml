@@ -19,32 +19,11 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       # O actions/checkout já configura a autenticação e converte URLs SSH para HTTPS automaticamente se usar o token do App
-      - name: Checkout repository (base)
+      - name: Checkout repository and Submodules
         uses: actions/checkout@v4
         with:
           token: ${{ steps.generate_token.outputs.token }}
-          submodules: false # Mantemos desativado para evitar o bug do runner
-          
-      - name: Fetch Submodules via Native Git Command
-        run: |
-          # 1. Limpa qualquer configuração local que possa conter o insteadOf corrompido
-          git config --local --unset-all url."https://github.com".insteadOf || true
-          git config --local --unset-all url."git@github.com:".insteadOf || true
-          
-          # 2. Constrói o URL HTTPS completo e autenticado com o token do GitHub App
-          AUTH_URL="https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com"
-          
-          # 3. Altera o URL do submódulo diretamente na configuração local
-          git submodule set-url nPZero_driver "$AUTH_URL"
-          git submodule sync --recursive
-          
-          # 4. Apaga metadados antigos do submódulo para forçar o Git a ler o novo URL limpo
-          rm -rf .git/modules/nPZero_driver
-          rm -rf nPZero_driver
-          
-          # 5. Executa o clone isolando o ambiente de qualquer configuração do runner
-          GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git submodule update --init --recursive --force
-
+          submodules: 'recursive' # Agora vai funcionar de forma nativa e segura
               
       - name: Create ZIP file
         run: |
