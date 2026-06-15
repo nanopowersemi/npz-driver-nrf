@@ -19,33 +19,36 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Checkout repository (base only)
+      # 1. Inicializa o ambiente Python necessário para as ferramentas do Zephyr (West)
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-python-version: '3.10'
+
+      # 2. Instala o West (gestor de repositórios do Zephyr)
+      - name: Install West
+        run: |
+          pip install west
+
+          # Remove qualquer configuração global do Git que o Runner tente injetar de forma errada
+          git config --global --unset-all url."https://github.com/".insteadOf || true
+
+      # 3. Faz o checkout do repositório principal sem tocar nos submódulos do Git
+      - name: Checkout repository (base)
         uses: actions/checkout@v4
         with:
-          # REMOVIDO o token daqui para impedir que o GitHub corrompa o ambiente Git
-          submodules: false 
-          persist-credentials: false
+          token: ${{ steps.generate_token.outputs.token }}
+          submodules: false # IMPEDE o bug do git submodule update
 
-      - name: Download Submodule Content Safely via API
+      # 4. Usa o West para descarregar o nPZero_driver e os componentes do Zephyr de forma correta
+      - name: Fetch Dependencies via West
         run: |
-          # 1. Remove qualquer pasta antiga ou vestígio do submódulo para evitar conflitos
-          rm -rf nPZero_driver
+          # Inicializa o workspace do Zephyr baseado no repositório atual
+          west init -l . || west init .
           
-          # 2. Transfere o código da branch principal do submódulo como um ficheiro ZIP limpo
-          # Usamos o token do App diretamente no cabeçalho HTTP da API do GitHub
-          curl -L -H "Authorization: Bearer ${{ steps.generate_token.outputs.token }}" \
-               -o submodule.zip \
-               https://github.com
-          
-          # 3. Cria a pasta destino e extrai apenas os ficheiros de código lá dentro
-          mkdir nPZero_driver
-          unzip submodule.zip -d nPZero_driver
-          
-          # 4. Ajusta a estrutura (a API do GitHub extrai os ficheiros dentro de uma subpasta com o hash do commit)
-          mv nPZero_driver/*/* nPZero_driver/ 2>/dev/null || true
-          
-          # 5. Limpa os ficheiros temporários do processo
-          rm -f submodule.zip
+          # Descarrega os módulos necessários de forma limpa, contornando o interpretador do Git
+          west update
+
 
       - name: Create ZIP file
         run: |
