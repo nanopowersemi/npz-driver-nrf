@@ -18,29 +18,12 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Checkout repository (base)
+      # O actions/checkout já configura a autenticação e converte URLs SSH para HTTPS automaticamente se usar o token do App
+      - name: Checkout repository and Submodules
         uses: actions/checkout@v4
         with:
           token: ${{ steps.generate_token.outputs.token }}
-          submodules: false 
-
-      - name: Fetch Submodules via HTTPS Token
-        run: |
-          # 1. Remove por completo o ficheiro de configuração global para limpar qualquer 'insteadOf' corrompido
-          rm -f ~/.gitconfig
-          
-          # 2. Configura a autenticação de forma limpa através de cabeçalhos HTTP (método nativo mais seguro)
-          git config --global http.https://github.com "AUTHORIZATION: basic $(echo -n "x-access-token:${{ steps.generate_token.outputs.token }}" | base64 )"
-          
-          # 3. Inicializa o submódulo
-          git submodule init
-          
-          # 4. Altera a URL de SSH para uma URL HTTPS limpa (o Git vai injetar o token do passo anterior automaticamente)
-          git submodule set-url nPZero_driver "https://github.com"
-          
-          # 5. Sincroniza e força a atualização dos submódulos
-          git submodule sync
-          git submodule update --init --recursive --remote --force
+          submodules: 'recursive' # Clona o repositório base e todos os submódulos de forma segura
 
       - name: Create ZIP file
         run: |
