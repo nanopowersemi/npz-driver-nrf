@@ -24,23 +24,18 @@ jobs:
         with:
           token: ${{ steps.generate_token.outputs.token }}
           submodules: false # Mantemos desativado para evitar o bug do runner
-
-      - name: Overwrite Git Environment and Fetch Submodules
-        env:
-          # Estas variáveis substituem qualquer ficheiro de configuração global ou do sistema do Runner
-          GIT_CONFIG_GLOBAL: /dev/null
-          GIT_CONFIG_SYSTEM: /dev/null
+          
+      - name: Fetch Submodules via Native Git Command
         run: |
-          # 1. Configura localmente (apenas neste repositório) a regra de tradução correta
-          git config url."https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/".insteadOf "git@github.com:"
-          
-          # 2. Força o URL correto do submódulo antes de inicializar
-          git submodule set-url nPZero_driver "https://github.com"
-          
-          # 3. Sincroniza e atualiza usando as variáveis de ambiente limpas
+          # 1. Atualiza explicitamente o URL do submódulo na árvore do repositório principal
+          git submodule set-url nPZero_driver "https://github.com/nanopowersemi/npz-driver"
           git submodule sync --recursive
-          git submodule update --init --recursive --force
 
+          # 2. Executa o clone corrigindo a sintaxe do cabeçalho e anulando regras globais corrompidas
+          git -c url."https://github.com/".insteadOf="" \
+              -c http.https://github.com"AUTHORIZATION: basic $(echo -n "x-access-token:${{ steps.generate_token.outputs.token }}" | base64)" \
+              submodule update --init --recursive --force
+              
       - name: Create ZIP file
         run: |
           ZIP_NAME="npz-driver-nrf-${{ github.event.release.tag_name }}.zip"
