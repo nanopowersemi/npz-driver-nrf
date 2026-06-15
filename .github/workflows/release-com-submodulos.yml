@@ -2,8 +2,8 @@ name: Release with submodules
 
 on:
   release:
-    types: [published, created, released]
-  workflow_dispatch: # Mantido apenas para que possa testar o botão manualmente se precisar
+    types: [published]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -19,36 +19,37 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-
-      - name: Checkout repository and Submodules
+      - name: Checkout repository (base)
         uses: actions/checkout@v4
         with:
           token: ${{ steps.generate_token.outputs.token }}
-          # Diz à Action para descarregar os submódulos logo no checkout
-          submodules: recursive
+          submodules: false 
 
-      # O passo "Fetch Submodules to HEAD" deixa de ser necessário!
+      - name: URL and Update Submodules to HEAD
+        run: |
+          # 1. URL of file .gitmodules
+          sed -i 's|git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git|https://github.com|g' .gitmodules
+          
+          # 2. Sync URL
+          git submodule sync
+          
+          # 3. Force update to latest branch (HEAD)
+          # A flag --remote ignore commit SHA registed in repo
+          git submodule update --init --recursive --remote --force
 
       - name: Create ZIP file
         run: |
-          # Garante um nome válido mesmo se disparado via workflow_dispatch manual (fallback)
-          TAG_NAME="${{ github.event.release.tag_name }}"
-          if [ -z "$TAG_NAME" ]; then
-            TAG_NAME="manual-build"
-          fi
-
-          ZIP_NAME="npz-driver-nrf-${TAG_NAME}.zip"
+          ZIP_NAME="npz-driver-stm32-${{ github.event.release.tag_name }}.zip"
           zip -r "$ZIP_NAME" . -x "*.git*" ".github/*"
 
           echo "ZIP_FILENAME=$ZIP_NAME" >> $GITHUB_ENV
-          echo "TARGET_TAG=$TAG_NAME" >> $GITHUB_ENV
 
       - name: Upload Asset to Release
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ env.ZIP_FILENAME }}
-          tag_name: ${{ env.TARGET_TAG }}
           append_body: true
+          # Generates the changelog automatically
           generate_release_notes: true 
           body: |
             
