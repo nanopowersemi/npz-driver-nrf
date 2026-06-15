@@ -18,12 +18,24 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      # O actions/checkout já configura a autenticação e converte URLs SSH para HTTPS automaticamente se usar o token do App
-      - name: Checkout repository and Submodules
+      - name: Checkout repository (base only)
         uses: actions/checkout@v4
         with:
-          token: ${{ steps.generate_token.outputs.token }}
-          submodules: 'recursive' # Agora vai funcionar de forma nativa e segura
+          # REMOVA o token do App daqui para impedir que o GitHub aplique o insteadOf corrompido
+          submodules: false 
+          persist-credentials: false
+
+      - name: Force Clean Clone of Submodule
+        run: |
+          # 1. Garante que pastas antigas e caches falhadas são eliminadas do Runner
+          rm -rf nPZero_driver
+          rm -rf .git/modules/nPZero_driver
+          
+          # 2. Faz o clone HTTPS direto usando o Token do App, sem acionar o motor de submódulos do Git
+          git clone --depth 1 "https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com" nPZero_driver
+          
+          # 3. Remove os metadados do Git do submódulo para que os ficheiros fiquem limpos para o ZIP
+          rm -rf nPZero_driver/.git
               
       - name: Create ZIP file
         run: |
