@@ -27,7 +27,10 @@ jobs:
 
       - name: URL and Update Submodules to HEAD
         run: |          
-          # 1. Força a atualização dos submódulos apontando para o HEAD remoto
+          # Altera a configuração global do Git para injetar o token e usar HTTPS em vez de SSH
+          git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com".insteadOf "git@github.com:"
+          
+          # Atualiza os submódulos de forma segura usando o token da App
           git submodule update --init --recursive --remote --force
 
       - name: Create ZIP file
