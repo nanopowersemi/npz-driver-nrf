@@ -1,0 +1,3 @@
+[submodule "nPZero_driver"]
+	path = nPZero_driver
+	url = https://github.com/nanopowersemi/npz-driver
