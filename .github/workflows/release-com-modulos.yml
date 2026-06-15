@@ -3,6 +3,7 @@ name: Release with submodules
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -18,25 +19,24 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Checkout repository (base only)
+      - name: Checkout repository (base)
         uses: actions/checkout@v4
         with:
-          # REMOVA o token do App daqui para impedir que o GitHub aplique o insteadOf corrompido
+          token: ${{ steps.generate_token.outputs.token }}
           submodules: false 
-          persist-credentials: false
 
-      - name: Force Clean Clone of Submodule
+      - name: URL and Update Submodules to HEAD
         run: |
-          # 1. Garante que pastas antigas e caches falhadas são eliminadas do Runner
-          rm -rf nPZero_driver
-          rm -rf .git/modules/nPZero_driver
+          # 1. URL of file .gitmodules
+          sed -i 's|git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git|https://github.com|g' .gitmodules
           
-          # 2. Faz o clone HTTPS direto usando o Token do App, sem acionar o motor de submódulos do Git
-          git clone --depth 1 "https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com" nPZero_driver
+          # 2. Sync URL
+          git submodule sync
           
-          # 3. Remove os metadados do Git do submódulo para que os ficheiros fiquem limpos para o ZIP
-          rm -rf nPZero_driver/.git
-              
+          # 3. Force update to latest branch (HEAD)
+          # A flag --remote ignore commit SHA registed in repo
+          git submodule update --init --recursive --remote --force
+
       - name: Create ZIP file
         run: |
           ZIP_NAME="npz-driver-nrf-${{ github.event.release.tag_name }}.zip"
@@ -48,8 +48,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ env.ZIP_FILENAME }}
-          tag_name: ${{ github.event.release.tag_name }}
           append_body: true
+          # Generates the changelog automatically
           generate_release_notes: true 
           body: |
             
