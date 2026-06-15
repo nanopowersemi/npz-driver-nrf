@@ -1,0 +1,62 @@
+name: Release with submodules
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Generate Token to GitHub App
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout repository (base)
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          submodules: false 
+
+      - name: URL and Update Submodules to HEAD
+        run: |
+          # 1. URL of file .gitmodules
+          sed -i 's|git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git|https://github.com|g' .gitmodules
+          
+          # 2. Sync URL
+          git submodule sync
+          
+          # 3. Force update to latest branch (HEAD)
+          # A flag --remote ignore commit SHA registed in repo
+          git submodule update --init --recursive --remote --force
+
+      - name: Create ZIP file
+        run: |
+          ZIP_NAME="npz-driver-nrf-${{ github.event.release.tag_name }}.zip"
+          zip -r "$ZIP_NAME" . -x "*.git*" ".github/*"
+
+          echo "ZIP_FILENAME=$ZIP_NAME" >> $GITHUB_ENV
+
+      - name: Upload Asset to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_FILENAME }}
+          append_body: true
+          # Generates the changelog automatically
+          generate_release_notes: true 
+          body: |
+            
+            ---
+            ### 📦 Submodules Included
+            > [!IMPORTANT]
+            > Please use the **`${{ env.ZIP_FILENAME }}`** asset attached below for the complete project.
+            > The default "Source code" zips provided by GitHub **do not** include submodule content.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
