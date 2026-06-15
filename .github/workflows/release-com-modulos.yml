@@ -27,14 +27,24 @@ jobs:
           
       - name: Fetch Submodules via Native Git Command
         run: |
-          # 1. Atualiza explicitamente o URL do submódulo na árvore do repositório principal
-          git submodule set-url nPZero_driver "https://github.com/nanopowersemi/npz-driver"
+          # 1. Limpa qualquer configuração local que possa conter o insteadOf corrompido
+          git config --local --unset-all url."https://github.com".insteadOf || true
+          git config --local --unset-all url."git@github.com:".insteadOf || true
+          
+          # 2. Constrói o URL HTTPS completo e autenticado com o token do GitHub App
+          AUTH_URL="https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com"
+          
+          # 3. Altera o URL do submódulo diretamente na configuração local
+          git submodule set-url nPZero_driver "$AUTH_URL"
           git submodule sync --recursive
+          
+          # 4. Apaga metadados antigos do submódulo para forçar o Git a ler o novo URL limpo
+          rm -rf .git/modules/nPZero_driver
+          rm -rf nPZero_driver
+          
+          # 5. Executa o clone isolando o ambiente de qualquer configuração do runner
+          GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null git submodule update --init --recursive --force
 
-          # 2. Executa o clone corrigindo a sintaxe do cabeçalho e anulando regras globais corrompidas
-          git -c url."https://github.com/".insteadOf="" \
-              -c http.https://github.com"AUTHORIZATION: basic $(echo -n "x-access-token:${{ steps.generate_token.outputs.token }}" | base64)" \
-              submodule update --init --recursive --force
               
       - name: Create ZIP file
         run: |
