@@ -1,0 +1,68 @@
+name: Release with submodules
+
+on:
+  release:
+    types: [published, created, released]
+  workflow_dispatch: # Mantido apenas para que possa testar o botão manualmente se precisar
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Generate Token to GitHub App
+        id: generate_token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Checkout repository (base)
+        uses: actions/checkout@v4
+        with:
+          token: ${{ steps.generate_token.outputs.token }}
+          submodules: false 
+
+      - name: URL and Update Submodules to HEAD
+        run: |
+          # 1. Altera o destino diretamente para a URL final do submódulo no GitHub
+          sed -i 's|git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git|https://github.com|g' .gitmodules
+          
+          # 2. Sincroniza a nova configuração de URLs
+          git submodule sync
+          
+          # 3. Força a atualização dos submódulos apontando para o HEAD remoto
+          git submodule update --init --recursive --remote --force
+
+      - name: Create ZIP file
+        run: |
+          # Garante um nome válido mesmo se disparado via workflow_dispatch manual (fallback)
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          if [ -z "$TAG_NAME" ]; then
+            TAG_NAME="manual-build"
+          fi
+
+          ZIP_NAME="npz-driver-nrf-${TAG_NAME}.zip"
+          zip -r "$ZIP_NAME" . -x "*.git*" ".github/*"
+
+          echo "ZIP_FILENAME=$ZIP_NAME" >> $GITHUB_ENV
+          echo "TARGET_TAG=$TAG_NAME" >> $GITHUB_ENV
+
+      - name: Upload Asset to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_FILENAME }}
+          tag_name: ${{ env.TARGET_TAG }}
+          append_body: true
+          generate_release_notes: true 
+          body: |
+            
+            ---
+            ### 📦 Submodules Included
+            > [!IMPORTANT]
+            > Please use the **`${{ env.ZIP_FILENAME }}`** asset attached below for the complete project.
+            > The default "Source code" zips provided by GitHub **do not** include submodule content.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
