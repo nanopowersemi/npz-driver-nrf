@@ -3,7 +3,6 @@ name: Release with submodules
 on:
   release:
     types: [published]
-  workflow_dispatch:
 
 jobs:
   build:
@@ -19,12 +18,13 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
+      # O actions/checkout já configura a autenticação e converte URLs SSH para HTTPS automaticamente se usar o token do App
       - name: Checkout repository (base)
         uses: actions/checkout@v4
         with:
           token: ${{ steps.generate_token.outputs.token }}
-          submodules: false 
-
+          submodules: false # Mantemos desativado para evitar o bug do runner
+          
       - name: URL and Update Submodules to HEAD
         run: |
           # 1. URL of file .gitmodules
@@ -36,7 +36,7 @@ jobs:
           # 3. Force update to latest branch (HEAD)
           # A flag --remote ignore commit SHA registed in repo
           git submodule update --init --recursive --remote --force
-
+              
       - name: Create ZIP file
         run: |
           ZIP_NAME="npz-driver-nrf-${{ github.event.release.tag_name }}.zip"
@@ -48,8 +48,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ env.ZIP_FILENAME }}
+          tag_name: ${{ github.event.release.tag_name }}
           append_body: true
-          # Generates the changelog automatically
           generate_release_notes: true 
           body: |
             
