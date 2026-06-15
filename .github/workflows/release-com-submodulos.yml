@@ -26,14 +26,8 @@ jobs:
           submodules: false 
 
       - name: URL and Update Submodules to HEAD
-        run: |
-          # 1. Altera o destino diretamente para a URL final do submódulo no GitHub
-          sed -i 's|git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git|https://github.com|g' .gitmodules
-          
-          # 2. Sincroniza a nova configuração de URLs
-          git submodule sync
-          
-          # 3. Força a atualização dos submódulos apontando para o HEAD remoto
+        run: |          
+          # 1. Força a atualização dos submódulos apontando para o HEAD remoto
           git submodule update --init --recursive --remote --force
 
       - name: Create ZIP file
