@@ -27,19 +27,21 @@ jobs:
 
       - name: URL and Update Submodules to HEAD
         run: |
-          # 1. URL of file .gitmodules
-          sed -i 's|git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git|https://github.com|g' .gitmodules
+          # 1. Configurar o Git para usar o token gerado em todos os pedidos ao GitHub
+          git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com".insteadOf "https://://github.com"
+
+          # 2. Corrigir o URL do ficheiro .gitmodules para o caminho completo
+          sed -i 's|git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git|https://://github.comnanopowersemi/npz-driver|g' .gitmodules
           
-          # 2. Sync URL
+          # 3. Sincronizar o novo URL no Git interno
           git submodule sync
           
-          # 3. Force update to latest branch (HEAD)
-          # A flag --remote ignore commit SHA registed in repo
+          # 4. Forçar a atualização para a última versão do submódulo
           git submodule update --init --recursive --remote --force
 
       - name: Create ZIP file
         run: |
-          ZIP_NAME="npz-driver-nrf-${{ github.event.release.tag_name }}.zip"
+          ZIP_NAME="npz-driver-nrf-${{ github.event.release.tag_name || 'manual' }}.zip"
           zip -r "$ZIP_NAME" . -x "*.git*" ".github/*"
 
           echo "ZIP_FILENAME=$ZIP_NAME" >> $GITHUB_ENV
@@ -49,7 +51,6 @@ jobs:
         with:
           files: ${{ env.ZIP_FILENAME }}
           append_body: true
-          # Generates the changelog automatically
           generate_release_notes: true 
           body: |
             
