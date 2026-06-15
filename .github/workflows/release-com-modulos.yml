@@ -19,16 +19,27 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
       # O actions/checkout já configura a autenticação e converte URLs SSH para HTTPS automaticamente se usar o token do App
-      - name: Checkout repository and Submodules
+      - name: Checkout repository (base)
         uses: actions/checkout@v4
         with:
           token: ${{ steps.generate_token.outputs.token }}
-          submodules: 'recursive'
+          submodules: false # Mantemos desativado para evitar o bug do runner
+
+      - name: Overwrite Git Environment and Fetch Submodules
         env:
-          # Força o git a ignorar qualquer configuração global residual de url.insteadOf
+          # Estas variáveis substituem qualquer ficheiro de configuração global ou do sistema do Runner
           GIT_CONFIG_GLOBAL: /dev/null
           GIT_CONFIG_SYSTEM: /dev/null
-
+        run: |
+          # 1. Configura localmente (apenas neste repositório) a regra de tradução correta
+          git config url."https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/".insteadOf "git@github.com:"
+          
+          # 2. Força o URL correto do submódulo antes de inicializar
+          git submodule set-url nPZero_driver "https://github.com"
+          
+          # 3. Sincroniza e atualiza usando as variáveis de ambiente limpas
+          git submodule sync --recursive
+          git submodule update --init --recursive --force
 
       - name: Create ZIP file
         run: |
