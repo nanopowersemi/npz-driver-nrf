@@ -26,20 +26,21 @@ jobs:
 
       - name: Fetch Submodules via HTTPS Token
         run: |
-          # 1. Remove qualquer configuração global residual de "insteadOf" para evitar conflitos
-          git config --global --remove-section url."https://github.com".insteadOf 2>/dev/null || true
-          git config --global --remove-section url."https://x-access-token:${{ steps.generate_token.outputs.token }}@github.com/".insteadOf 2>/dev/null || true
+          # 1. Remove por completo o ficheiro de configuração global para limpar qualquer 'insteadOf' corrompido
+          rm -f ~/.gitconfig
           
-          # 2. Inicializa o submódulo
+          # 2. Configura a autenticação de forma limpa através de cabeçalhos HTTP (método nativo mais seguro)
+          git config --global http.https://github.com "AUTHORIZATION: basic $(echo -n "x-access-token:${{ steps.generate_token.outputs.token }}" | base64 )"
+          
+          # 3. Inicializa o submódulo
           git submodule init
           
-          # 3. Define a URL HTTPS correta para o submódulo de forma limpa
-          git submodule set-url nPZero_driver "https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com"
+          # 4. Altera a URL de SSH para uma URL HTTPS limpa (o Git vai injetar o token do passo anterior automaticamente)
+          git submodule set-url nPZero_driver "https://github.com"
           
-          # 4. Sincroniza e força a atualização
+          # 5. Sincroniza e força a atualização dos submódulos
           git submodule sync
           git submodule update --init --recursive --remote --force
-
 
       - name: Create ZIP file
         run: |
