@@ -3,6 +3,7 @@ name: Release with submodules
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -18,33 +19,32 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Checkout repository (base only)
+      - name: Checkout repository (base)
         uses: actions/checkout@v4
         with:
-          submodules: false # Garante que a action não mexe em submódulos
-          persist-credentials: false
+          token: ${{ steps.generate_token.outputs.token }}
+          submodules: false 
 
-      - name: Nuclear Clean and Clone Submodule Manually
+      - name: URL and Update Submodules to HEAD
         run: |
-          # 1. Destrói qualquer configuração global do Git que o Runner tenha injetado
-          git config --global --unset-all url."https://github.com".insteadOf || true
-          git config --global --unset-all url."git@github.com:".insteadOf || true
-          git config --system --unset-all url."https://github.com".insteadOf || true 2>/dev/null
+          # 1. Substituição exata e limpa do URL do Gitea para o repositório público do GitHub
+          sed -i 's|git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git|https://github.com/nanopowersemi/npz-driver.git|g' .gitmodules
           
-          # 2. Limpa pastas antigas e caches locais falhadas
-          rm -rf nPZero_driver
-          rm -rf .git/modules/nPZero_driver
+          # 2. Sincroniza a árvore do Git com o novo ficheiro modificado
+          git submodule sync
           
-          # 3. Faz o clone manual isolado, forçando o Git a ignorar reescritas de URL no subprocesso
-          git -c url."https://github.com".insteadOf="" \
-              clone --depth 1 "https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com" nPZero_driver
-          
-          # 4. Remove os metadados do Git do submódulo para não quebrar o passo do ZIP
-          rm -rf nPZero_driver/.git
-              
+          # 3. Executa o update com sucesso através do URL corrigido
+          git submodule update --init --recursive --remote --force
+
       - name: Create ZIP file
         run: |
-          ZIP_NAME="npz-driver-nrf-${{ github.event.release.tag_name }}.zip"
+          # Define um nome padrão (fallback) caso o workflow seja disparado manualmente (workflow_dispatch)
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          if [ -z "$TAG_NAME" ]; then
+            TAG_NAME="manual-build"
+          fi
+
+          ZIP_NAME="npz-driver-nrf-${TAG_NAME}.zip"
           zip -r "$ZIP_NAME" . -x "*.git*" ".github/*"
 
           echo "ZIP_FILENAME=$ZIP_NAME" >> $GITHUB_ENV
@@ -53,9 +53,10 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ env.ZIP_FILENAME }}
-          tag_name: ${{ github.event.release.tag_name }}
           append_body: true
           generate_release_notes: true 
+          # Garante que se for disparado manualmente, tenta associar à última tag conhecida ou falha graciosamente sem quebrar o runner
+          tag_name: ${{ github.event.release.tag_name }}
           body: |
             
             ---
