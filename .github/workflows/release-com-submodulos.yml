@@ -19,19 +19,15 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Checkout repository (base)
+
+      - name: Checkout repository and Submodules
         uses: actions/checkout@v4
         with:
           token: ${{ steps.generate_token.outputs.token }}
-          submodules: false 
+          # Diz à Action para descarregar os submódulos logo no checkout
+          submodules: recursive
 
-      - name: URL and Update Submodules to HEAD
-        run: |          
-          # Altera a configuração global do Git para injetar o token e usar HTTPS em vez de SSH
-          git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com".insteadOf "git@github.com:"
-          
-          # Atualiza os submódulos de forma segura usando o token da App
-          git submodule update --init --recursive --remote --force
+      # O passo "Fetch Submodules to HEAD" deixa de ser necessário!
 
       - name: Create ZIP file
         run: |
