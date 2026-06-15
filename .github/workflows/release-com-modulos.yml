@@ -19,27 +19,36 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Checkout repository (base)
+      - name: Checkout repository (base only)
         uses: actions/checkout@v4
         with:
-          token: ${{ steps.generate_token.outputs.token }}
+          # REMOVIDO o token daqui para impedir que o GitHub corrompa o ambiente Git
           submodules: false 
+          persist-credentials: false
 
-      - name: URL and Update Submodules to HEAD
+      - name: Download Submodule Content Safely via API
         run: |
-          # 1. Substitui qualquer formato SSH (seja Gitea ou GitHub) para HTTPS nativo de forma universal
-          sed -i 's|git@github.com:|https://github.com|g' .gitmodules
-          sed -i 's|git@gitea.nano.power:NP0_G0_EVB/|https://github.comnanopowersemi/|g' .gitmodules
+          # 1. Remove qualquer pasta antiga ou vestígio do submódulo para evitar conflitos
+          rm -rf nPZero_driver
           
-          # 2. Sincroniza as novas URLs modificadas na árvore do Git
-          git submodule sync
+          # 2. Transfere o código da branch principal do submódulo como um ficheiro ZIP limpo
+          # Usamos o token do App diretamente no cabeçalho HTTP da API do GitHub
+          curl -L -H "Authorization: Bearer ${{ steps.generate_token.outputs.token }}" \
+               -o submodule.zip \
+               https://github.com
           
-          # 3. Executa o update com sucesso através da URL HTTPS limpa
-          git submodule update --init --recursive --remote --force
+          # 3. Cria a pasta destino e extrai apenas os ficheiros de código lá dentro
+          mkdir nPZero_driver
+          unzip submodule.zip -d nPZero_driver
+          
+          # 4. Ajusta a estrutura (a API do GitHub extrai os ficheiros dentro de uma subpasta com o hash do commit)
+          mv nPZero_driver/*/* nPZero_driver/ 2>/dev/null || true
+          
+          # 5. Limpa os ficheiros temporários do processo
+          rm -f submodule.zip
 
       - name: Create ZIP file
         run: |
-          # Define um nome padrão (fallback) caso o workflow seja disparado manualmente (workflow_dispatch)
           TAG_NAME="${{ github.event.release.tag_name }}"
           if [ -z "$TAG_NAME" ]; then
             TAG_NAME="manual-build"
@@ -56,7 +65,6 @@ jobs:
           files: ${{ env.ZIP_FILENAME }}
           append_body: true
           generate_release_notes: true 
-          # Garante que se for disparado manualmente, tenta associar à última tag conhecida ou falha graciosamente sem quebrar o runner
           tag_name: ${{ github.event.release.tag_name }}
           body: |
             
