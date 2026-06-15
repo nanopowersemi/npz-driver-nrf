@@ -27,14 +27,13 @@ jobs:
 
       - name: URL and Update Submodules to HEAD
         run: |
-          # 1. URL of file .gitmodules
+          # 1. URL of file .gitmodules (Substitui a URL antiga pela nova do GitHub)
           sed -i 's|git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git|https://github.com|g' .gitmodules
           
           # 2. Sync URL
           git submodule sync
           
           # 3. Force update to latest branch (HEAD)
-          # A flag --remote ignore commit SHA registed in repo
           git submodule update --init --recursive --remote --force
 
       - name: Create ZIP file
