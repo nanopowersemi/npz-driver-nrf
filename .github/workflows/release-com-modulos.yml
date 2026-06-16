@@ -27,13 +27,16 @@ jobs:
           
       - name: URL and Update Submodules to HEAD
         run: |
-          # 1. Substitui o URL SSH do GitHub pelo formato HTTPS correto com o Token do App
-          sed -i 's|git@github.com:nanopowersemi/npz-driver.git|https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com|g' .gitmodules
+          # 1. Limpa qualquer inicialização ou cache corrompida do submódulo
+          git submodule deinit -f . || true
           
-          # 2. Sincroniza a nova configuração do URL no Git
+          # 2. Força a alteração do URL no ficheiro .gitmodules usando o Git (evita erros de sed)
+          git config --file .gitmodules submodule.nPZero_driver.url "https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com"
+          
+          # 3. Sincroniza a configuração com o Git interno
           git submodule sync
           
-          # 3. Força a atualização para o HEAD remoto
+          # 4. Inicializa e atualiza o submódulo a partir do novo URL HTTPS autenticado
           git submodule update --init --recursive --remote --force
           
       - name: Create ZIP file
