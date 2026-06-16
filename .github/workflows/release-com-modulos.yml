@@ -19,29 +19,22 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - name: Checkout repository (base)
+      # O próprio checkout faz o clone completo do repositório e dos submódulos
+      # usando o token do App, convertendo internamente os URLs para HTTPS.
+      - name: Checkout repository and submodules
         uses: actions/checkout@v4
         with:
           token: ${{ steps.generate_token.outputs.token }}
-          submodules: false 
-          
-      - name: URL and Update Submodules to HEAD
-        run: |
-          # 1. Configura o Git globalmente para intercetar e reescrever qualquer variação do URL do submódulo
-          git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com".insteadOf "git@github.com:nanopowersemi/npz-driver.git"
-          git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com".insteadOf "git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git"
-          git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com".insteadOf "https://github.com"
-          git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com".insteadOf "https:////github.com"
+          submodules: 'recursive'
 
-          # 2. Força a sincronização usando as regras globais de reescrita
-          git submodule sync
-          
-          # 3. Atualiza o submódulo
-          git submodule update --init --recursive --remote --force
+      # Se precisar mesmo de garantir que o submódulo fica no HEAD mais recente:
+      - name: Update Submodules to HEAD
+        run: |
+          git submodule update --init --recursive --force
           
       - name: Create ZIP file
         run: |
-          ZIP_NAME="npz-driver-xc32-${{ github.event.release.tag_name }}.zip"
+          ZIP_NAME="npz-driver-nrf-${{ github.event.release.tag_name }}.zip"
           zip -r "$ZIP_NAME" . -x "*.git*" ".github/*"
 
           echo "ZIP_FILENAME=$ZIP_NAME" >> $GITHUB_ENV
