@@ -27,14 +27,13 @@ jobs:
 
       - name: URL and Update Submodules to HEAD
         run: |
-          # 1. URL of file .gitmodules
-          sed -i 's|git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git|https://github.com|g' .gitmodules
+          # 1. Substitui o URL antigo pelo formato HTTPS correto do GitHub, injetando o token do App
+          sed -i 's|git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git|https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com|g' .gitmodules
           
-          # 2. Sync URL
+          # 2. Sincroniza a nova configuração do URL
           git submodule sync
           
-          # 3. Force update to latest branch (HEAD)
-          # A flag --remote ignore commit SHA registed in repo
+          # 3. Força a atualização para o HEAD remoto usando HTTPS autenticado
           git submodule update --init --recursive --remote --force
 
       - name: Create ZIP file
