@@ -19,45 +19,27 @@ jobs:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      # 1. Inicializa o ambiente Python necessário para as ferramentas do Zephyr (West)
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-python-version: '3.10'
-
-      # 2. Instala o West (gestor de repositórios do Zephyr)
-      - name: Install West
-        run: |
-          pip install west
-
-          # Remove qualquer configuração global do Git que o Runner tente injetar de forma errada
-          git config --global --unset-all url."https://github.com/".insteadOf || true
-
-      # 3. Faz o checkout do repositório principal sem tocar nos submódulos do Git
       - name: Checkout repository (base)
         uses: actions/checkout@v4
         with:
           token: ${{ steps.generate_token.outputs.token }}
-          submodules: false # IMPEDE o bug do git submodule update
+          submodules: false 
 
-      # 4. Usa o West para descarregar o nPZero_driver e os componentes do Zephyr de forma correta
-      - name: Fetch Dependencies via West
+      - name: URL and Update Submodules to HEAD
         run: |
-          # Inicializa o workspace do Zephyr baseado no repositório atual
-          west init -l . || west init .
+          # 1. URL of file .gitmodules
+          sed -i 's|git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git|https://github.com|g' .gitmodules
           
-          # Descarrega os módulos necessários de forma limpa, contornando o interpretador do Git
-          west update
-
+          # 2. Sync URL
+          git submodule sync
+          
+          # 3. Force update to latest branch (HEAD)
+          # A flag --remote ignore commit SHA registed in repo
+          git submodule update --init --recursive --remote --force
 
       - name: Create ZIP file
         run: |
-          TAG_NAME="${{ github.event.release.tag_name }}"
-          if [ -z "$TAG_NAME" ]; then
-            TAG_NAME="manual-build"
-          fi
-
-          ZIP_NAME="npz-driver-nrf-${TAG_NAME}.zip"
+          ZIP_NAME="npz-driver-xc32-${{ github.event.release.tag_name }}.zip"
           zip -r "$ZIP_NAME" . -x "*.git*" ".github/*"
 
           echo "ZIP_FILENAME=$ZIP_NAME" >> $GITHUB_ENV
@@ -67,8 +49,8 @@ jobs:
         with:
           files: ${{ env.ZIP_FILENAME }}
           append_body: true
+          # Generates the changelog automatically
           generate_release_notes: true 
-          tag_name: ${{ github.event.release.tag_name }}
           body: |
             
             ---
