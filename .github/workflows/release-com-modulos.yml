@@ -24,18 +24,18 @@ jobs:
         with:
           token: ${{ steps.generate_token.outputs.token }}
           submodules: false 
-
+          
       - name: URL and Update Submodules to HEAD
         run: |
-          # 1. Substitui o URL antigo pelo formato HTTPS correto do GitHub, injetando o token do App
-          sed -i 's|git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git|https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com|g' .gitmodules
+          # 1. Substitui o URL SSH do GitHub pelo formato HTTPS correto com o Token do App
+          sed -i 's|git@github.com:nanopowersemi/npz-driver.git|https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com|g' .gitmodules
           
-          # 2. Sincroniza a nova configuração do URL
+          # 2. Sincroniza a nova configuração do URL no Git
           git submodule sync
           
-          # 3. Força a atualização para o HEAD remoto usando HTTPS autenticado
+          # 3. Força a atualização para o HEAD remoto
           git submodule update --init --recursive --remote --force
-
+          
       - name: Create ZIP file
         run: |
           ZIP_NAME="npz-driver-xc32-${{ github.event.release.tag_name }}.zip"
