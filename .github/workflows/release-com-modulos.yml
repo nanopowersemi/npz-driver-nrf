@@ -27,16 +27,16 @@ jobs:
           
       - name: URL and Update Submodules to HEAD
         run: |
-          # 1. Limpa qualquer inicialização ou cache corrompida do submódulo
-          git submodule deinit -f . || true
-          
-          # 2. Força a alteração do URL no ficheiro .gitmodules usando o Git (evita erros de sed)
-          git config --file .gitmodules submodule.nPZero_driver.url "https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com"
-          
-          # 3. Sincroniza a configuração com o Git interno
+          # 1. Configura o Git globalmente para intercetar e reescrever qualquer variação do URL do submódulo
+          git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com".insteadOf "git@github.com:nanopowersemi/npz-driver.git"
+          git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com".insteadOf "git@gitea.nano.power:NP0_G0_EVB/nPZero_driver.git"
+          git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com".insteadOf "https://github.com"
+          git config --global url."https://x-access-token:${{ steps.generate_token.outputs.token }}@://github.com".insteadOf "https:////github.com"
+
+          # 2. Força a sincronização usando as regras globais de reescrita
           git submodule sync
           
-          # 4. Inicializa e atualiza o submódulo a partir do novo URL HTTPS autenticado
+          # 3. Atualiza o submódulo
           git submodule update --init --recursive --remote --force
           
       - name: Create ZIP file
