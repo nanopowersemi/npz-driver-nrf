@@ -1,10 +1,10 @@
 menu "nPZero Driver nRF52"
 
 config NP0_G0
-    bool "Enable nano power G0"
+    bool "Enable nPZG1"
 	default y
     help
-      This firmware enables nano power G0. Note that SRMA and SPI communication with external peripherals are not supported.
+      This firmware enables mPZG1
 
 endmenu
 
