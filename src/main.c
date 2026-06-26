@@ -199,8 +199,8 @@ int main(void)
     // Print welcome message
     printk("nPZero Host is active.........\r\n");
 
-    // Initialize the nP0 interface
-    npz_hal_init();
+    // Initialize the nPZG1S
+    npz_init();
   
     // Read the status registers of the nP0 device after every reset
     npz_status_s npz_status = {0};
