@@ -25,6 +25,7 @@
  *****************************************************************************/
 
 #include "../nPZero_driver/Inc/npz_hal.h"
+#include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/devicetree.h>
 #include <zephyr/drivers/gpio.h>
@@ -88,7 +89,11 @@ npz_status_e npz_hal_init()
 {
     int error_code = 0;
     m_nrfx_twis_dev = DEVICE_DT_GET(MY_TWIM);
-    if (m_nrfx_twis_dev == NULL)
+
+    /* DEVICE_DT_GET always returns a valid, non-NULL pointer at compile time,
+     * so a NULL check here never actually catches an init failure.
+     * device_is_ready() is the correct runtime check. */
+    if (!device_is_ready(m_nrfx_twis_dev))
     {
         return ERR;
     }

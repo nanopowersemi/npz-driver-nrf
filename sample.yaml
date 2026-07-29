@@ -1,12 +1,7 @@
 sample:
-  name: Bluetooth Beacon
+  name: nPZero G1S nRF52 Power Management Integration
 tests:
-  sample.bluetooth.beacon:
-    harness: bluetooth
+  sample.npzero.nrf52:
     platform_allow:
-      - qemu_cortex_m3
-      - qemu_x86
-      - nrf52dk_nrf52833
-    tags: bluetooth
-    integration_platforms:
-      - qemu_cortex_m3
+      - nrf52833dk/nrf52833
+    tags: i2c

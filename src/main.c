@@ -213,6 +213,7 @@ int main(void)
     // This delay should be removed in production code  
     k_msleep(1000);
 
-    // At the end of your operations, put the device into sleep mode
-    npz_device_go_to_sleep();
+    // At the end of your operations, put the device into idle mode
+    // (renamed from npz_device_go_to_sleep(), which is not declared in npz_device_control.h)
+    npz_device_go_to_idle();
 }
