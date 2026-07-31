@@ -40,6 +40,13 @@
 #define I2C_DELAY_MS 5
 #define MY_TWIM DT_NODELABEL(arduino_i2c)
 
+/* NPZ_I2C_ADDRESS (npz_hal.h) is documented as pre-shifted left by 1 bit
+ * (8-bit-style addressing, e.g. as expected by ST HAL-style drivers).
+ * Zephyr's i2c_write()/i2c_write_read() expect the UNSHIFTED 7-bit address
+ * and perform their own internal shift, so the incoming slave_address must
+ * be shifted back down by 1 bit before being handed to the Zephyr I2C API. */
+#define NPZ_TO_ZEPHYR_7BIT_ADDR(addr) ((addr) >> 1)
+
 /*****************************************************************************
  * Data
  *****************************************************************************/
@@ -61,7 +68,7 @@ npz_status_e npz_hal_read(uint8_t slave_address, uint8_t slave_register, uint8_t
                           uint32_t timeout)
 {
     uint8_t transmitData[] = {slave_register};
-    if (i2c_write_read(m_nrfx_twis_dev, slave_address, transmitData, sizeof(transmitData), pData, size) != 0)
+    if (i2c_write_read(m_nrfx_twis_dev, NPZ_TO_ZEPHYR_7BIT_ADDR(slave_address), transmitData, sizeof(transmitData), pData, size) != 0)
     {
         return ERR;
     }
@@ -74,7 +81,7 @@ npz_status_e npz_hal_read(uint8_t slave_address, uint8_t slave_register, uint8_t
  */
 npz_status_e npz_hal_write(uint8_t slave_address, uint8_t *pData, uint16_t size, uint32_t timeout)
 {
-    if (i2c_write(m_nrfx_twis_dev, pData, size, slave_address) != 0)
+    if (i2c_write(m_nrfx_twis_dev, pData, size, NPZ_TO_ZEPHYR_7BIT_ADDR(slave_address)) != 0)
     {
         return ERR;
     }
